@@ -2,6 +2,12 @@
 
 #include <cassert>
 
+namespace
+{
+    using std::vector;
+    using std::string;
+}
+
 byte hexCharToBits(char hex)
 {
     switch(hex)
@@ -62,12 +68,102 @@ byte hexCharToBits(char hex)
     return 0;
 }
 
+char bitsToBase64(byte bits)
+{
+    if (bits < 26)
+        return 'A' + bits;
+    else if (bits < 52)
+        return 'a' + bits - 26;
+    else if (bits < 62)
+        return '0' + bits - 52;
+    else if (bits == 62)
+        return '+';
+    else
+        return '/';
+}
+
 // decode a hex string to raw bytes
 vector<byte> hexToRawBytes(const string& input)
 {
+    vector<byte> result;
+
+    // with the hex string, we always should have an even number of chars, 
+    // as out base unit is 1 byte -> 2 hex
+    assert(input.size() % 2 == 0);
+
+    for (size_t i = 0; i < input.size(); i += 2)
+    {
+        byte converted;
+        converted = hexCharToBits(input[i]);
+        converted <<= 4;
+        converted |= hexCharToBits(input[i + 1]);
+
+        result.push_back(converted);
+    }
+
+    return result;
 }
+
+string bytesToBase64(const vector<byte>& bytes)
+{
+    //groups of 3 bytes -> 4 chars
+    string result;
+    
+    size_t curr = 0;
+    size_t size = bytes.size();
+    while (curr < size)
+    {
+        //we have a full triplet and can convert without issues
+        if (size - curr >= 3)
+        {
+            byte a = bytes[curr];
+            byte b = bytes[curr+1];
+            byte c = bytes[curr+2];
+
+            result.push_back(bitsToBase64(a >> 2));
+            result.push_back(bitsToBase64((a & 0x3) << 4 | b >> 4));
+            result.push_back(bitsToBase64((b & 0xf) << 2 | c >> 6));
+            result.push_back(bitsToBase64(c & 0x3f));
+        }
+        else if (size - curr == 2)
+        {
+            byte a = bytes[curr];
+            byte b = bytes[curr+1];
+
+            result.push_back(bitsToBase64(a >> 2));
+            result.push_back(bitsToBase64((a & 0x3) << 4 | b >> 4));
+            result.push_back(bitsToBase64(b << 4));
+            result.push_back('=');
+        }
+        else
+        {
+            byte a = bytes[curr];
+
+            result.push_back(bitsToBase64(a >> 2));
+            result.push_back(bitsToBase64((a & 0x3) << 4));
+            result.push_back('=');
+            result.push_back('=');
+        }
+
+        curr += 3;
+    }
+
+    return result;
+}
+
+#include <iostream>
 
 int main(void)
 {
+    string input("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d");
+
+    auto intermediate = hexToRawBytes(input);
+
+    auto result = bytesToBase64(intermediate);
+
+    std::cout << result << std::endl;
+
+    system("PAUSE");
+
     return 0;
 }
