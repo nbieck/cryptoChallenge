@@ -1,12 +1,6 @@
-#include "defines.h"
+#include "encoding.h"
 
 #include <cassert>
-
-namespace
-{
-    using std::vector;
-    using std::string;
-}
 
 byte hexCharToBits(char hex)
 {
@@ -68,6 +62,14 @@ byte hexCharToBits(char hex)
     return 0;
 }
 
+char bitsToHex(byte bits)
+{
+    if (bits < 10)
+        return '0' + bits;
+    else
+        return 'a' + bits - 10;
+}
+
 char bitsToBase64(byte bits)
 {
     if (bits < 26)
@@ -82,10 +84,9 @@ char bitsToBase64(byte bits)
         return '/';
 }
 
-// decode a hex string to raw bytes
-vector<byte> hexToRawBytes(const string& input)
+bytestring hexToBytes(const string& input)
 {
-    vector<byte> result;
+    bytestring result;
 
     // with the hex string, we always should have an even number of chars, 
     // as out base unit is 1 byte -> 2 hex
@@ -104,7 +105,7 @@ vector<byte> hexToRawBytes(const string& input)
     return result;
 }
 
-string bytesToBase64(const vector<byte>& bytes)
+string bytesToBase64(const bytestring& bytes)
 {
     //groups of 3 bytes -> 4 chars
     string result;
@@ -151,19 +152,15 @@ string bytesToBase64(const vector<byte>& bytes)
     return result;
 }
 
-#include <iostream>
-
-int main(void)
+string bytesToHex(const bytestring& bytes)
 {
-    string input("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d");
+    string result;
 
-    auto intermediate = hexToRawBytes(input);
+    for (auto b : bytes)
+    {
+        result.push_back(bitsToHex(b >> 4));
+        result.push_back(bitsToHex(b & 0x0f));
+    }
 
-    auto result = bytesToBase64(intermediate);
-
-    std::cout << result << std::endl;
-
-    system("PAUSE");
-
-    return 0;
+    return result;
 }
