@@ -1,2 +1,2 @@
 # cryptoChallenge
-Working through the crypto challenge at cryptopals.com
+Working through the crypto challenges at cryptopals.com
