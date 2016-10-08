@@ -49,6 +49,10 @@ unsigned score_string(const bytestring& input)
         {
             char_counts[std::tolower(b) - 'a'].second++;
         }
+        if (std::iscntrl(b) && !std::isspace(b))
+        {
+            return 0;
+        }
     }
 
     std::sort(char_counts.begin(), char_counts.end(), 
@@ -81,13 +85,13 @@ unsigned score_string(const bytestring& input)
 
         int diff = abs((i + 1) - freq);
 
-        score += std::max(0, 3 - diff);
+        score += std::max(0, 2 - diff);
     }
 
     return score;
 }
 
-byte find_xor_key(const bytestring& ciphertext)
+byte find_xor_key(const bytestring& ciphertext, unsigned* score = nullptr)
 {
     vector<std::pair<byte, unsigned>> score_per_key;
 
@@ -104,28 +108,75 @@ byte find_xor_key(const bytestring& ciphertext)
             return a.second > b.second;
         });
 
+    if (score)
+    {
+        *score = score_per_key[0].second;
+    }
     return score_per_key[0].first;
 }
 
 #include "encoding.h"
 #include <iostream>
+#include <fstream>
+
+struct Entry
+{
+    unsigned lineNum;
+    bytestring data;
+    byte key;
+    unsigned score;
+};
 
 int main(void)
 {
-    auto b = hexToBytes("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736");
+    std::ifstream input("4.txt");
 
-    byte key = find_xor_key(b);
+    if (input)
+    {
+        char line[70];
+        unsigned lineNum = 1;
+        vector<Entry> entries;
 
-    bytestring decoded = single_xor(b, key);
+        while (input.getline(line, 70))
+        {
+            bytestring data = hexToBytes(string(line));
 
-    string solved(decoded.size(), ' ');
+            Entry entry;
+            entry.lineNum = lineNum;
+            entry.data = data;
+            entry.key = find_xor_key(data, &entry.score);
 
-    std::transform(decoded.begin(), decoded.end(), solved.begin(), [](byte b) {return (char)b; });
+            entries.push_back(entry);
+            lineNum++;
+        }
 
-    std::cout << "Key: " << (int)key << std::endl;
-    std::cout << solved << std::endl;
+        std::sort(entries.begin(), entries.end(),
+            [](const Entry& a, const Entry& b)
+        {
+            return a.score > b.score;
+        });
 
-    system("pause");
+        unsigned score = entries[0].score;
+        int i = 0;
+
+        for (auto entry : entries)
+        {
+            if (++i > 10)
+                break;
+
+            std::cout << "Line: " << std::dec << entry.lineNum << std::endl;
+            std::cout << "Key: " << std::hex << (int)entry.key << std::endl;
+            std::cout << "Score: " << std::dec << entry.score << std::endl;
+
+            bytestring decoded = single_xor(entry.data, entry.key);
+            string result(decoded.begin(), decoded.end());
+
+            std::cout << result << std::endl;
+            std::cout << std::endl;
+        }
+
+        system("pause");
+    }
 
     return 0;
 }
