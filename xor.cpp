@@ -115,68 +115,38 @@ byte find_xor_key(const bytestring& ciphertext, unsigned* score = nullptr)
     return score_per_key[0].first;
 }
 
+bytestring repeating_key_xor(const bytestring& text, const bytestring& key)
+{
+    bytestring result(text);
+
+    size_t key_length = key.size();
+    size_t text_length = text.size();
+
+    for (size_t i = 0; i < text_length; ++i)
+    {
+        size_t j = i % key_length;
+
+        result[i] = text[i] ^ key[j];
+    }
+
+    return result;
+}
+
 #include "encoding.h"
 #include <iostream>
 #include <fstream>
 
-struct Entry
-{
-    unsigned lineNum;
-    bytestring data;
-    byte key;
-    unsigned score;
-};
-
 int main(void)
 {
-    std::ifstream input("4.txt");
+    string text("Burning 'em, if you ain't quick and nimble I go crazy when I hear a cymbal");
+    bytestring test_bin(text.begin(), text.end());
 
-    if (input)
-    {
-        char line[70];
-        unsigned lineNum = 1;
-        vector<Entry> entries;
+    bytestring key = { 'I', 'C', 'E' };
 
-        while (input.getline(line, 70))
-        {
-            bytestring data = hexToBytes(string(line));
+    bytestring cypher = repeating_key_xor(test_bin, key);
 
-            Entry entry;
-            entry.lineNum = lineNum;
-            entry.data = data;
-            entry.key = find_xor_key(data, &entry.score);
+    std::cout << bytesToHex(cypher) << std::endl;
 
-            entries.push_back(entry);
-            lineNum++;
-        }
-
-        std::sort(entries.begin(), entries.end(),
-            [](const Entry& a, const Entry& b)
-        {
-            return a.score > b.score;
-        });
-
-        unsigned score = entries[0].score;
-        int i = 0;
-
-        for (auto entry : entries)
-        {
-            if (++i > 10)
-                break;
-
-            std::cout << "Line: " << std::dec << entry.lineNum << std::endl;
-            std::cout << "Key: " << std::hex << (int)entry.key << std::endl;
-            std::cout << "Score: " << std::dec << entry.score << std::endl;
-
-            bytestring decoded = single_xor(entry.data, entry.key);
-            string result(decoded.begin(), decoded.end());
-
-            std::cout << result << std::endl;
-            std::cout << std::endl;
-        }
-
-        system("pause");
-    }
-
+    system("pause");
     return 0;
 }
