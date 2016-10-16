@@ -86,7 +86,7 @@ unsigned score_string(const bytestring& input)
 
         int diff = abs((i + 1) - freq);
 
-        score += std::max(0, 3 - diff);
+        score += std::max(0, 10 - diff);
     }
 
     return score;
@@ -147,14 +147,14 @@ vector<bytestring> break_repeating_key_xor(const bytestring& ciphertext)
         bytestring d(ciphertext.begin() + i * 3, ciphertext.begin() + i * 4);
 
         size_t distance = hamming_distance(a, b);
-        distance += hamming_distance(a, c);
-        distance += hamming_distance(a, d);
+        distance += hamming_distance(b, c);
+        distance += hamming_distance(c, d);
         hamming_dists.push_back(static_cast<float>(distance) / static_cast<float>(i * 3.f));
     }
 
     vector<bytestring> keys;
 
-    for (int j = 0; j < 4; ++j)
+    for (int j = 0; j < 3; ++j)
     {
         auto it = std::min_element(hamming_dists.begin(), hamming_dists.end());
         size_t key_length = std::distance(hamming_dists.begin(), it) + 2;
@@ -208,7 +208,10 @@ int main(void)
         {
             auto text = repeating_key_xor(ciphertext, k);
             string res(text.begin(), text.end());
+            string key_t(k.begin(), k.end());
 
+            std::cout << key_t << std::endl;
+            std::cout << "----------" << std::endl;
             std::cout << res << std::endl;
             std::cout << std::endl;
             std::cout << std::endl;
