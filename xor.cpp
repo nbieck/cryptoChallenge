@@ -1,4 +1,5 @@
 #include "defines.h"
+#include "utils.h"
 
 #include <cassert>
 #include <algorithm>
@@ -85,7 +86,7 @@ unsigned score_string(const bytestring& input)
 
         int diff = abs((i + 1) - freq);
 
-        score += std::max(0, 2 - diff);
+        score += std::max(0, 3 - diff);
     }
 
     return score;
@@ -132,20 +133,88 @@ bytestring repeating_key_xor(const bytestring& text, const bytestring& key)
     return result;
 }
 
-#include "encoding.h"
+//returns a set of likely keys
+vector<bytestring> break_repeating_key_xor(const bytestring& ciphertext)
+{
+    //find keysize using normalized hamming distance
+    vector<float> hamming_dists;
+
+    for (int i = 2; i <= 40; ++i)
+    {
+        bytestring a(ciphertext.begin(), ciphertext.begin() + i);
+        bytestring b(ciphertext.begin() + i, ciphertext.begin() + i * 2);
+        bytestring c(ciphertext.begin() + i * 2, ciphertext.begin() + i * 3);
+        bytestring d(ciphertext.begin() + i * 3, ciphertext.begin() + i * 4);
+
+        size_t distance = hamming_distance(a, b);
+        distance += hamming_distance(a, c);
+        distance += hamming_distance(a, d);
+        hamming_dists.push_back(static_cast<float>(distance) / static_cast<float>(i * 3.f));
+    }
+
+    vector<bytestring> keys;
+
+    for (int j = 0; j < 4; ++j)
+    {
+        auto it = std::min_element(hamming_dists.begin(), hamming_dists.end());
+        size_t key_length = std::distance(hamming_dists.begin(), it) + 2;
+        *it = std::numeric_limits<float>::max();
+
+        //transpose blocks
+        vector<bytestring> blocks(key_length);
+
+        size_t length = ciphertext.size();
+        for (size_t i = 0; i < length; ++i)
+        {
+            blocks[i % key_length].push_back(ciphertext[i]);
+        }
+
+        //solve individual single XOR
+        bytestring key;
+        for (const auto& block : blocks)
+        {
+            key.push_back(find_xor_key(block));
+        }
+
+        keys.push_back(key);
+    }
+
+    return keys;
+}
+
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <iterator>
 
 int main(void)
 {
-    string text("Burning 'em, if you ain't quick and nimble I go crazy when I hear a cymbal");
-    bytestring test_bin(text.begin(), text.end());
+    std::ifstream file("6.txt");
 
-    bytestring key = { 'I', 'C', 'E' };
+    if (file)
+    {
+        std::stringstream buff;
+        buff << file.rdbuf();
+        string contents = buff.str();
+        string base64;
 
-    bytestring cypher = repeating_key_xor(test_bin, key);
+        std::copy_if(contents.begin(), contents.end(), std::back_inserter(base64), [](char c) {return !std::iscntrl(c); });
 
-    std::cout << bytesToHex(cypher) << std::endl;
+        bytestring ciphertext = base64ToBytes(base64);
+
+        vector<bytestring> keys = break_repeating_key_xor(ciphertext);
+
+        for (auto k : keys)
+        {
+            auto text = repeating_key_xor(ciphertext, k);
+            string res(text.begin(), text.end());
+
+            std::cout << res << std::endl;
+            std::cout << std::endl;
+            std::cout << std::endl;
+            std::cout << std::endl;
+        }
+    }
 
     system("pause");
     return 0;
